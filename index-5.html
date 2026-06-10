@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#1B1714" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<title>Our Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#1B1714; --bg2:#221C18; --surface:#2A231D; --surface2:#332A22;
+    --line:rgba(242,233,220,.09); --line2:rgba(242,233,220,.16);
+    --ink:#F2E9DC; --ink-soft:#C9BCA9; --ink-faint:#8C8175;
+    --save:#9DC08B; --save-deep:#6F9A63;
+    --a:#E3A857;   /* person A */
+    --b:#7BB0A8;   /* person B */
+    --warn:#D2785F;
+    --neutral:#B9A788;
+    --radius:18px;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --tab-h:64px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Figtree",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.45;
+    padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom,0px) + 12px);
+    min-height:100vh;
+  }
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:560px;margin:0 auto;padding:0 18px}
+
+  /* Header */
+  header.app{
+    padding:22px 18px 8px; max-width:560px; margin:0 auto;
+    display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px}
+  .brand .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+  .brand h1{
+    font-family:"Fraunces",serif; font-weight:600; font-size:27px; line-height:1;
+    margin:0; letter-spacing:-.01em;
+  }
+  .datechip{
+    font-size:12px;color:var(--ink-soft);text-align:right;line-height:1.3;
+  }
+
+  /* Money-date nudge */
+  .nudge{
+    margin:12px auto 0; max-width:560px;
+    background:linear-gradient(180deg,var(--surface2),var(--surface));
+    border:1px solid var(--line2); border-radius:14px;
+    padding:12px 14px; display:flex; align-items:center; gap:11px;
+    box-shadow:var(--shadow);
+  }
+  .nudge .dot{width:9px;height:9px;border-radius:50%;background:var(--save);flex:none;box-shadow:0 0 0 4px rgba(157,192,139,.18)}
+  .nudge.due .dot{background:var(--a);box-shadow:0 0 0 4px rgba(227,168,87,.18)}
+  .nudge .txt{font-size:13.5px;color:var(--ink-soft);flex:1}
+  .nudge .txt b{color:var(--ink);font-weight:600}
+  .nudge button{flex:none}
+
+  /* Generic */
+  section.view{display:none; animation:fade .3s ease both}
+  section.view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+
+  .card{
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius); padding:18px; margin-top:14px;
+  }
+  .card .eyebrow{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:10px}
+
+  /* Savings hero (signature) */
+  .hero{
+    margin-top:16px; padding:22px 20px 20px;
+    background:
+      radial-gradient(120% 90% at 80% -10%,rgba(157,192,139,.16),transparent 60%),
+      linear-gradient(180deg,var(--surface2),var(--surface));
+    border:1px solid var(--line2); border-radius:22px; box-shadow:var(--shadow);
+    position:relative; overflow:hidden;
+  }
+  .hero .label{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--save);font-weight:700}
+  .hero .goalname{color:var(--ink-soft);font-size:13px;margin-top:2px}
+  .hero .amount{
+    font-family:"Fraunces",serif; font-weight:600; letter-spacing:-.02em;
+    font-size:42px; line-height:1; margin:14px 0 2px;
+  }
+  .hero .of{color:var(--ink-faint);font-size:14px;font-family:"Figtree",sans-serif;font-weight:500}
+  .bar{
+    height:13px;border-radius:20px;background:rgba(0,0,0,.28);
+    border:1px solid var(--line); overflow:hidden; margin-top:14px; position:relative;
+  }
+  .bar > span{
+    display:block;height:100%;border-radius:20px;
+    background:linear-gradient(90deg,var(--save-deep),var(--save));
+    width:0; transition:width 1s cubic-bezier(.4,0,.1,1);
+  }
+  .hero .meta{display:flex;justify-content:space-between;margin-top:10px;font-size:12.5px;color:var(--ink-soft)}
+  .hero .meta b{color:var(--ink)}
+
+  /* Allowance pair */
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .purse{
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:16px; padding:15px; position:relative; overflow:hidden;
+  }
+  .purse:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+  .purse.a:before{background:var(--a)} .purse.b:before{background:var(--b)}
+  .purse .who{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .purse.a .who{color:var(--a)} .purse.b .who{color:var(--b)}
+  .purse .left{font-family:"Fraunces",serif;font-size:25px;font-weight:600;margin-top:8px;letter-spacing:-.01em}
+  .purse .sub{font-size:11.5px;color:var(--ink-faint);margin-top:1px}
+  .purse .mini{height:7px;border-radius:10px;background:rgba(0,0,0,.25);margin-top:11px;overflow:hidden}
+  .purse .mini > span{display:block;height:100%;border-radius:10px;transition:width .8s ease}
+  .purse.a .mini > span{background:var(--a)} .purse.b .mini > span{background:var(--b)}
+  .purse.over .left{color:var(--warn)}
+  .purse.over .mini > span{background:var(--warn)!important}
+
+  /* Bucket rows */
+  .bucket{margin-top:13px}
+  .bucket:first-child{margin-top:0}
+  .bucket .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .bucket .name{font-weight:600;font-size:14.5px}
+  .bucket .figs{font-size:12.5px;color:var(--ink-soft)}
+  .bucket .figs b{color:var(--ink)}
+  .bucket .track{height:9px;border-radius:10px;background:rgba(0,0,0,.25);overflow:hidden}
+  .bucket .track > span{display:block;height:100%;border-radius:10px;background:var(--neutral);transition:width .8s ease}
+  .bucket.over .track > span{background:var(--warn)}
+  .bucket.over .figs b{color:var(--warn)}
+
+  /* Transactions */
+  .txn{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+  .txn:first-of-type{border-top:0}
+  .txn .tag{width:9px;height:9px;border-radius:50%;flex:none}
+  .txn .tdesc{flex:1;min-width:0}
+  .txn .tdesc .t1{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .txn .tdesc .t2{font-size:11.5px;color:var(--ink-faint)}
+  .txn .tamt{font-family:"Fraunces",serif;font-weight:600;font-size:16px}
+  .txn .tamt.save{color:var(--save)}
+
+  /* Park it */
+  .parked{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px;background:var(--surface)}
+  .parked .ptop{display:flex;justify-content:space-between;gap:10px}
+  .parked .pname{font-weight:600;font-size:15px}
+  .parked .pcost{font-family:"Fraunces",serif;font-weight:600;font-size:17px;flex:none}
+  .parked .pwho{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:20px;margin-top:8px}
+  .parked .pwho.a{color:var(--a);background:rgba(227,168,87,.13)}
+  .parked .pwho.b{color:var(--b);background:rgba(123,176,168,.13)}
+  .parked .status{font-size:12.5px;color:var(--ink-soft);margin-top:10px}
+  .parked .status.ready{color:var(--save);font-weight:600}
+  .parked .pacts{display:flex;gap:9px;margin-top:12px}
+  .parked .pacts button{flex:1}
+
+  .resisted{
+    margin-top:14px;background:linear-gradient(180deg,rgba(157,192,139,.1),transparent);
+    border:1px dashed rgba(157,192,139,.35);border-radius:14px;padding:13px 15px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .resisted .r1{font-size:13px;color:var(--ink-soft)}
+  .resisted .r2{font-family:"Fraunces",serif;font-weight:600;font-size:21px;color:var(--save)}
+
+  /* Forms */
+  label.fl{display:block;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:14px 0 6px}
+  input,select{
+    width:100%;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);
+    border-radius:12px;padding:13px 14px;font-size:16px;font-family:inherit;
+  }
+  input:focus,select:focus{outline:2px solid var(--save);outline-offset:1px;border-color:transparent}
+  input::placeholder{color:var(--ink-faint)}
+  .segrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .seg{
+    flex:1;min-width:fit-content;text-align:center;padding:11px 10px;border-radius:12px;
+    background:var(--bg2);border:1px solid var(--line2);color:var(--ink-soft);
+    font-size:13.5px;font-weight:600;cursor:pointer;user-select:none;transition:.15s;
+  }
+  .seg[aria-pressed="true"]{background:var(--surface2);color:var(--ink);border-color:var(--line2);box-shadow:inset 0 0 0 1px var(--save)}
+  .seg.a[aria-pressed="true"]{box-shadow:inset 0 0 0 1px var(--a)}
+  .seg.b[aria-pressed="true"]{box-shadow:inset 0 0 0 1px var(--b)}
+
+  button{
+    font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;
+    border-radius:12px;padding:13px 16px;border:1px solid transparent;color:var(--bg);
+    background:var(--ink);transition:.15s;
+  }
+  button:active{transform:scale(.98)}
+  button.primary{background:var(--save);color:#10160d}
+  button.ghost{background:transparent;color:var(--ink);border-color:var(--line2)}
+  button.tiny{padding:8px 12px;font-size:12.5px}
+  button.warn{background:transparent;color:var(--warn);border-color:rgba(210,120,95,.4)}
+  button:focus-visible{outline:2px solid var(--save);outline-offset:2px}
+  .btnrow{display:flex;gap:10px;margin-top:18px}
+  .btnrow button{flex:1}
+
+  .empty{text-align:center;color:var(--ink-faint);padding:30px 16px;font-size:14px}
+  .empty b{display:block;color:var(--ink-soft);font-size:15px;margin-bottom:6px;font-family:"Fraunces",serif;font-weight:600}
+
+  .leftover{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:13px}
+  .leftover .v{font-family:"Fraunces",serif;font-weight:600;font-size:18px}
+  .leftover .v.ok{color:var(--save)} .leftover .v.bad{color:var(--warn)}
+
+  h2.vt{font-family:"Fraunces",serif;font-weight:600;font-size:22px;margin:18px 0 0}
+  p.vsub{color:var(--ink-soft);font-size:13.5px;margin:4px 0 0}
+
+  /* Bottom tab bar */
+  nav.tabs{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    background:rgba(27,23,20,.92);backdrop-filter:blur(12px);
+    border-top:1px solid var(--line2);
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));
+    display:flex;justify-content:space-around;
+  }
+  nav.tabs button{
+    background:none;border:none;color:var(--ink-faint);padding:6px 4px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;
+    font-size:10.5px;font-weight:600;letter-spacing:.02em;
+  }
+  nav.tabs button svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.7}
+  nav.tabs button[aria-current="true"]{color:var(--ink)}
+  nav.tabs button.addbtn{position:relative}
+  nav.tabs button.addbtn .plus{
+    width:46px;height:46px;border-radius:15px;background:var(--save);color:#10160d;
+    display:flex;align-items:center;justify-content:center;margin-top:-14px;
+    box-shadow:0 8px 18px rgba(157,192,139,.3);
+  }
+  nav.tabs button.addbtn .plus svg{width:26px;height:26px;stroke:#10160d;stroke-width:2.2}
+
+  .hint{font-size:12.5px;color:var(--ink-faint);margin-top:10px;line-height:1.5}
+  .divider{height:1px;background:var(--line);margin:18px 0}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tab-h) + 18px);
+    background:var(--surface2);color:var(--ink);border:1px solid var(--line2);
+    padding:11px 18px;border-radius:30px;font-size:13.5px;font-weight:500;
+    box-shadow:var(--shadow);z-index:50;opacity:0;pointer-events:none;transition:.25s;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+  /* sync */
+  textarea{width:100%;min-height:96px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);border-radius:12px;padding:13px 14px;font-size:14px;font-family:"Figtree",sans-serif;resize:vertical}
+  textarea:focus{outline:2px solid var(--save);outline-offset:1px;border-color:transparent}
+  .syncstat{font-size:13.5px;font-weight:600;margin-bottom:6px}
+  details summary{list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  .installbar{display:none;margin:12px auto 0;max-width:560px;align-items:center;gap:11px;
+    background:linear-gradient(180deg,var(--surface2),var(--surface));border:1px solid var(--save);
+    border-radius:14px;padding:11px 13px;box-shadow:var(--shadow)}
+  .installbar .ico{width:34px;height:34px;border-radius:9px;flex:none}
+  .installbar .txt{flex:1;font-size:13.5px;color:var(--ink-soft);line-height:1.3}
+  .installbar .txt b{color:var(--ink);font-weight:600}
+  .installbar button{flex:none;padding:9px 14px;font-size:13px}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<header class="app">
+  <div class="brand">
+    <span class="eyebrow" id="hh-eyebrow">Household</span>
+    <h1>Our Ledger</h1>
+  </div>
+  <div class="datechip" id="datechip"></div>
+</header>
+
+<div class="installbar" id="installBar">
+  <img class="ico" src="./icon-192.png" alt="" />
+  <div class="txt"><b>Install Our Ledger</b><br>Add it as a real app for fullscreen use.</div>
+  <button class="primary" id="installBtn">Install</button>
+</div>
+
+<div id="nudgeMount"></div>
+
+<main>
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-home">
+    <div class="wrap" id="homeMount"></div>
+  </section>
+
+  <!-- ADD -->
+  <section class="view" id="view-add">
+    <div class="wrap">
+      <h2 class="vt">Log a spend or a save</h2>
+      <p class="vsub">Takes ten seconds. No accounts to connect.</p>
+      <div class="card">
+        <label class="fl">Amount</label>
+        <input id="t-amount" type="number" inputmode="decimal" placeholder="0.00" />
+        <label class="fl">What was it for?</label>
+        <input id="t-note" type="text" placeholder="e.g. Gloomhaven expansion" />
+        <label class="fl">Which pot?</label>
+        <div class="segrow" id="t-cats"></div>
+        <div id="t-whowrap" style="display:none">
+          <label class="fl">Whose money?</label>
+          <div class="segrow">
+            <div class="seg a" data-who="a" role="button" tabindex="0" aria-pressed="false" id="t-who-a">A</div>
+            <div class="seg b" data-who="b" role="button" tabindex="0" aria-pressed="false" id="t-who-b">B</div>
+          </div>
+        </div>
+        <label class="fl">Date</label>
+        <input id="t-date" type="date" />
+        <div class="btnrow">
+          <button class="primary" id="t-save">Add to ledger</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PARK IT -->
+  <section class="view" id="view-park">
+    <div class="wrap">
+      <h2 class="vt">Park it, don't buy it</h2>
+      <p class="vsub">Tempted? Drop it here and let it cool off. Most wants fade.</p>
+      <div class="card">
+        <label class="fl">What do you want?</label>
+        <input id="p-name" type="text" placeholder="e.g. Collector's edition pledge" />
+        <div class="row2">
+          <div>
+            <label class="fl">Cost</label>
+            <input id="p-cost" type="number" inputmode="decimal" placeholder="0.00" />
+          </div>
+          <div>
+            <label class="fl">Cool off</label>
+            <select id="p-cool">
+              <option value="2">2 days</option>
+              <option value="7" selected>1 week</option>
+              <option value="14">2 weeks</option>
+              <option value="30">1 month</option>
+            </select>
+          </div>
+        </div>
+        <label class="fl">Whose want?</label>
+        <div class="segrow">
+          <div class="seg a" data-pwho="a" role="button" tabindex="0" aria-pressed="false" id="p-who-a">A</div>
+          <div class="seg b" data-pwho="b" role="button" tabindex="0" aria-pressed="false" id="p-who-b">B</div>
+        </div>
+        <div class="btnrow">
+          <button class="ghost" id="p-add">Park it</button>
+        </div>
+      </div>
+      <div id="parkMount"></div>
+    </div>
+  </section>
+
+  <!-- MONEY DATE -->
+  <section class="view" id="view-date">
+    <div class="wrap" id="dateMount"></div>
+  </section>
+
+  <!-- SETUP -->
+  <section class="view" id="view-setup">
+    <div class="wrap" id="setupMount"></div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs">
+  <button data-go="home" aria-current="true">
+    <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/></svg>
+    Home
+  </button>
+  <button data-go="park">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    Park
+  </button>
+  <button class="addbtn" data-go="add" aria-label="Add transaction">
+    <span class="plus"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+  </button>
+  <button data-go="date">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/><path d="M8 14l2.5 2.5L16 12"/></svg>
+    Date
+  </button>
+  <button data-go="setup">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.13-1.3l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.27-1.3L13.7 2h-3.4l-.33 2.5a7 7 0 0 0-2.27 1.3l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .13 1.3l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.27 1.3l.33 2.5h3.4l.33-2.5a7 7 0 0 0 2.27-1.3l2.3 1 2-3.4-2-1.5A7 7 0 0 0 19 12z"/></svg>
+    Setup
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- storage shim (real localStorage when deployed; in-memory fallback) ---------- */
+const KEY="ourLedger.v1";
+const Store=(()=>{let mem=null;
+  return{
+    read(){try{const v=localStorage.getItem(KEY);return v?JSON.parse(v):null;}catch(e){return mem;}},
+    write(o){try{localStorage.setItem(KEY,JSON.stringify(o));}catch(e){mem=o;}}
+  };
+})();
+
+/* ---------- defaults ---------- */
+function defaults(){
+  return{
+    names:{a:"Nicholas",b:"Payton"},
+    income:0,
+    alloc:{savings:0,essentials:0,shared:0,a:0,b:0},
+    goal:{name:"Emergency fund",target:0,start:0},
+    txns:[],      // {id,amount,cat,who,note,date}
+    parked:[],    // {id,name,cost,who,cool,added,status}
+    resisted:0,
+    lastDate:null
+  };
+}
+let S=(()=>{
+  const d=defaults(), r=Store.read()||{};
+  const o=Object.assign(d,r);
+  o.names=Object.assign({},d.names,r.names||{});
+  o.alloc=Object.assign({},d.alloc,r.alloc||{});
+  o.goal=Object.assign({},d.goal,r.goal||{});
+  o.txns=Array.isArray(r.txns)?r.txns:[];
+  o.parked=Array.isArray(r.parked)?r.parked:[];
+  return o;
+})();
+function save(){S.updatedAt=Date.now();Store.write(S);cloudPush();}
+
+/* ---------- two-phone sync (Firebase Realtime Database) ---------- */
+/* 1) Create a free Firebase project, add a Web app, enable Realtime Database.
+   2) Paste that project's web config below (these values are safe to be public).
+   You can also paste the config inside the app under Setup > Sync instead of editing here. */
+const FIREBASE_CONFIG = {
+  apiKey:"",
+  authDomain:"",
+  databaseURL:"",
+  projectId:""
+};
+const SYNC_KEY="ourLedger.sync";
+let syncCfg=(()=>{try{return JSON.parse(localStorage.getItem(SYNC_KEY))||{};}catch(e){return{};}})();
+let fbApp=null,fbDB=null,fbRef=null,syncReady=false,applyingRemote=false;
+
+function activeConfig(){return (syncCfg.config&&syncCfg.config.databaseURL)?syncCfg.config:FIREBASE_CONFIG;}
+function syncEnabled(){const c=activeConfig();return !!(c&&c.databaseURL&&syncCfg.code);}
+function randCode(){let s="";while(s.length<20)s+=Math.random().toString(36).slice(2);return s.slice(0,20);}
+
+function initSync(){
+  updateSyncUI(syncEnabled()?"connecting":"off");
+  if(!syncEnabled())return;
+  if(typeof firebase==="undefined"){updateSyncUI("error","library didn\u2019t load");return;}
+  try{
+    if(!fbApp)fbApp=firebase.initializeApp(activeConfig());
+    if(!fbDB)fbDB=firebase.database();
+    fbRef=fbDB.ref("households/"+syncCfg.code);
+    fbRef.on("value",snap=>{
+      const remote=snap.val();
+      syncReady=true;
+      if(!remote){cloudPush();updateSyncUI("on");return;}
+      applyingRemote=true;
+      S=mergeState(S,remote);
+      Store.write(S);
+      applyingRemote=false;
+      rerenderActive();
+      updateSyncUI("on");
+    },err=>updateSyncUI("error",err&&err.message));
+  }catch(e){updateSyncUI("error",e.message);}
+}
+function cloudPush(){
+  if(!syncReady||!fbRef||applyingRemote)return;
+  try{fbRef.set(S);}catch(e){}
+}
+function mergeState(local,remote){
+  const lU=local.updatedAt||0,rU=remote.updatedAt||0;
+  const newer=rU>lU?remote:local;
+  const out=Object.assign({},local,remote);
+  ["names","income","alloc","goal","resisted","lastDate"].forEach(k=>{out[k]=newer[k];});
+  const tm={};
+  (remote.txns||[]).forEach(t=>tm[t.id]=t);
+  (local.txns||[]).forEach(t=>tm[t.id]=t);
+  out.txns=Object.values(tm);
+  const pm={};
+  [...(remote.parked||[]),...(local.parked||[])].forEach(p=>{
+    const ex=pm[p.id];
+    if(!ex)pm[p.id]=p;
+    else pm[p.id]=(p.status!=="cooling")?p:(ex.status!=="cooling"?ex:p);
+  });
+  out.parked=Object.values(pm);
+  out.updatedAt=Math.max(lU,rU);
+  return out;
+}
+function rerenderActive(){
+  const v=document.querySelector("section.view.active");if(!v)return;
+  const id=v.id.replace("view-","");
+  if(id==="home")renderHome();
+  else if(id==="park")renderPark();
+  else if(id==="date")renderDate();
+  /* skip setup to avoid wiping inputs mid-edit */
+}
+function updateSyncUI(state,msg){
+  const el=document.getElementById("syncStatus");if(!el)return;
+  const map={
+    off:["Not syncing yet \u2014 set it up below","var(--ink-faint)"],
+    connecting:["Connecting\u2026","var(--a)"],
+    on:["\u25CF Synced \u2014 changes share live","var(--save)"],
+    error:["Couldn\u2019t connect"+(msg?" ("+msg+")":""),"var(--warn)"]
+  };
+  const v=map[state]||map.off;el.textContent=v[0];el.style.color=v[1];
+}
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const money=n=>{const v=Math.round((+n||0)*100)/100;
+  return "$"+v.toLocaleString("en-US",{minimumFractionDigits:(v%1?2:0),maximumFractionDigits:2});};
+const monthKey=d=>{const x=new Date(d);return x.getFullYear()+"-"+x.getMonth();};
+const nowMonth=()=>monthKey(new Date());
+const daysBetween=(a,b)=>Math.floor((b-a)/86400000);
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1900);}
+
+const CATS=[
+  {id:"savings",label:"Savings",color:"var(--save)"},
+  {id:"essentials",label:"Essentials",color:"var(--neutral)"},
+  {id:"shared",label:"Shared",color:"var(--neutral)"},
+  {id:"a",label:"Personal",color:"var(--a)",personal:true},
+  {id:"b",label:"Personal",color:"var(--b)",personal:true}
+];
+const catColor=id=>(CATS.find(c=>c.id===id)||{}).color||"var(--ink)";
+
+function spentThisMonth(cat){
+  const m=nowMonth();
+  return S.txns.filter(t=>t.cat===cat&&monthKey(t.date)===m).reduce((s,t)=>s+(+t.amount),0);
+}
+function savedTotal(){
+  return (+S.goal.start||0)+S.txns.filter(t=>t.cat==="savings").reduce((s,t)=>s+(+t.amount),0);
+}
+
+/* ---------- navigation ---------- */
+function go(v){
+  document.querySelectorAll("section.view").forEach(s=>s.classList.remove("active"));
+  $("#view-"+v).classList.add("active");
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.removeAttribute("aria-current"));
+  const btn=document.querySelector('nav.tabs button[data-go="'+v+'"]');
+  if(btn)btn.setAttribute("aria-current","true");
+  window.scrollTo({top:0,behavior:"instant"});
+  try{
+    if(v==="home")renderHome();
+    else if(v==="park")renderPark();
+    else if(v==="date")renderDate();
+    else if(v==="setup")renderSetup();
+    else if(v==="add")resetAddForm();
+  }catch(err){
+    const mount=document.querySelector("#view-"+v+" .wrap");
+    if(mount)mount.innerHTML='<div class="card"><div class="empty"><b>Something hiccuped</b>'+escapeHtml(err&&err.message||String(err))+'</div></div>';
+  }
+}
+document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.go)));
+
+/* ---------- header / nudge ---------- */
+function renderHeader(){
+  $("#hh-eyebrow").textContent = (S.names.a||"")+" & "+(S.names.b||"");
+  const d=new Date();
+  $("#datechip").innerHTML = d.toLocaleString("en-US",{month:"long"})+"<br>"+d.getFullYear();
+}
+function renderNudge(){
+  const mount=$("#nudgeMount");
+  const days = S.lastDate ? daysBetween(new Date(S.lastDate),new Date()) : null;
+  const due = days===null || days>=7;
+  mount.innerHTML =
+    '<div class="nudge'+(due?' due':'')+'"><span class="dot"></span><div class="txt">'+
+    (S.lastDate
+      ? '<b>'+(due?'Time for a money date.':'You\u2019re on track.')+'</b> Last check-in '+days+(days===1?' day':' days')+' ago.'
+      : '<b>Set your weekly rhythm.</b> Do your first money date together.')+
+    '</div><button class="tiny ghost" onclick="go(\'date\')">Open</button></div>';
+}
+
+/* ---------- DASHBOARD ---------- */
+function renderHome(){
+  renderHeader();renderNudge();
+  const m=$("#homeMount");
+  if(!S.income && !S.alloc.savings && !S.txns.length){
+    m.innerHTML='<div class="card"><div class="empty"><b>Welcome to your ledger</b>'+
+      'Set up your monthly plan once \u2014 income, savings, bills, and a personal allowance each \u2014 and the rest runs itself.'+
+      '<div style="margin-top:16px"><button class="primary" onclick="go(\'setup\')">Set up our plan</button></div></div></div>';
+    return;
+  }
+  const saved=savedTotal(), target=+S.goal.target||0;
+  const pct=target>0?Math.min(100,(saved/target)*100):0;
+  const monthSave=spentThisMonth("savings");
+
+  let html='';
+  /* savings hero */
+  html+='<div class="hero"><div class="label">Saving together</div>'+
+    '<div class="goalname">'+(S.goal.name||"Savings goal")+'</div>'+
+    '<div class="amount num">'+money(saved)+' <span class="of">of '+money(target)+'</span></div>'+
+    '<div class="bar"><span id="heroBar"></span></div>'+
+    '<div class="meta"><span>This month: <b class="num">'+money(monthSave)+'</b> saved</span>'+
+    '<span><b class="num">'+(target>0?Math.round(pct):0)+'%</b> there</span></div></div>';
+
+  /* personal allowances */
+  const aSpent=spentThisMonth("a"), bSpent=spentThisMonth("b");
+  const aLeft=(+S.alloc.a||0)-aSpent, bLeft=(+S.alloc.b||0)-bSpent;
+  const aPct=S.alloc.a>0?Math.min(100,(aSpent/S.alloc.a)*100):0;
+  const bPct=S.alloc.b>0?Math.min(100,(bSpent/S.alloc.b)*100):0;
+  html+='<div class="pair">'+
+    purse("a",S.names.a,aLeft,S.alloc.a,aPct)+
+    purse("b",S.names.b,bLeft,S.alloc.b,bPct)+'</div>';
+
+  /* shared + essentials buckets */
+  html+='<div class="card"><div class="eyebrow">This month\u2019s pots</div>'+
+    bucket("Essentials & bills","essentials")+
+    bucket("Shared spending","shared")+'</div>';
+
+  /* recent */
+  const recent=[...S.txns].sort((x,y)=>new Date(y.date)-new Date(x.date)).slice(0,6);
+  html+='<div class="card"><div class="eyebrow">Recent activity</div>';
+  if(!recent.length){html+='<div class="empty" style="padding:14px 0">Nothing logged yet. Tap \u002B to add the first one.</div>';}
+  else{recent.forEach(t=>{
+    const personal=t.cat==="a"||t.cat==="b";
+    const nm=personal?(S.names[t.cat]):(CATS.find(c=>c.id===t.cat)||{}).label;
+    html+='<div class="txn"><span class="tag" style="background:'+catColor(t.cat)+'"></span>'+
+      '<div class="tdesc"><div class="t1">'+escapeHtml(t.note||nm)+'</div>'+
+      '<div class="t2">'+nm+' \u00b7 '+fmtDate(t.date)+'</div></div>'+
+      '<div class="tamt'+(t.cat==="savings"?' save':'')+' num">'+(t.cat==="savings"?'+':'')+money(t.amount)+'</div></div>';
+  });}
+  html+='</div>';
+
+  m.innerHTML=html;
+  requestAnimationFrame(()=>{const b=$("#heroBar");if(b)b.style.width=pct+"%";});
+}
+function purse(key,name,left,alloc,pct){
+  const over=left<0;
+  return '<div class="purse '+key+(over?' over':'')+'"><div class="who">'+escapeHtml(name||(key==="a"?"A":"B"))+'</div>'+
+    '<div class="left num">'+money(left)+'</div>'+
+    '<div class="sub">left of '+money(alloc)+(over?' \u00b7 over':'')+'</div>'+
+    '<div class="mini"><span style="width:'+pct+'%"></span></div></div>';
+}
+function bucket(name,cat){
+  const sp=spentThisMonth(cat), al=+S.alloc[cat]||0, left=al-sp;
+  const pct=al>0?Math.min(100,(sp/al)*100):0, over=left<0;
+  return '<div class="bucket'+(over?' over':'')+'"><div class="top"><span class="name">'+name+'</span>'+
+    '<span class="figs"><b class="num">'+money(sp)+'</b> / '+money(al)+'</span></div>'+
+    '<div class="track"><span style="width:'+pct+'%"></span></div></div>';
+}
+
+/* ---------- ADD ---------- */
+let addWho=null, addCat="essentials";
+function buildCatChips(){
+  const wrap=$("#t-cats");wrap.innerHTML="";
+  [["savings","Savings"],["essentials","Essentials"],["shared","Shared"],["a",S.names.a],["b",S.names.b]]
+  .forEach(([id,lbl])=>{
+    const el=document.createElement("div");
+    el.className="seg"+(id==="a"?" a":id==="b"?" b":"");
+    el.textContent=lbl; el.dataset.cat=id; el.setAttribute("role","button");el.tabIndex=0;
+    el.setAttribute("aria-pressed", id===addCat?"true":"false");
+    el.onclick=()=>selectCat(id);
+    el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectCat(id);}};
+    wrap.appendChild(el);
+  });
+}
+function selectCat(id){
+  addCat=id;
+  document.querySelectorAll("#t-cats .seg").forEach(s=>s.setAttribute("aria-pressed",s.dataset.cat===id?"true":"false"));
+  const personal=id==="a"||id==="b";
+  $("#t-whowrap").style.display="none";
+  if(personal){addWho=id;}
+}
+function resetAddForm(){
+  buildCatChips();
+  $("#t-amount").value="";$("#t-note").value="";
+  $("#t-date").value=new Date().toISOString().slice(0,10);
+  addCat="essentials";selectCat("essentials");addWho=null;
+}
+$("#t-save").onclick=()=>{
+  const amt=parseFloat($("#t-amount").value);
+  if(!amt||amt<=0){toast("Enter an amount");return;}
+  let cat=addCat, who=null;
+  if(cat==="a"||cat==="b"){who=cat;}
+  S.txns.push({id:Date.now(),amount:amt,cat,who,note:$("#t-note").value.trim(),date:$("#t-date").value||new Date().toISOString().slice(0,10)});
+  save();toast(cat==="savings"?"Nice \u2014 added to savings \uD83C\uDF31":"Logged");
+  go("home");
+};
+
+/* ---------- PARK IT ---------- */
+let parkWho="a";
+["a","b"].forEach(k=>{
+  const el=$("#p-who-"+k);
+  el.onclick=()=>setParkWho(k);
+  el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setParkWho(k);}};
+});
+function setParkWho(k){parkWho=k;["a","b"].forEach(x=>$("#p-who-"+x).setAttribute("aria-pressed",x===k?"true":"false"));}
+function labelParkWho(){$("#p-who-a").textContent=S.names.a;$("#p-who-b").textContent=S.names.b;}
+$("#p-add").onclick=()=>{
+  const name=$("#p-name").value.trim();const cost=parseFloat($("#p-cost").value)||0;
+  if(!name){toast("What is it?");return;}
+  S.parked.push({id:Date.now(),name,cost,who:parkWho,cool:+$("#p-cool").value,added:new Date().toISOString(),status:"cooling"});
+  save();$("#p-name").value="";$("#p-cost").value="";
+  toast("Parked. Give it time.");renderPark();
+};
+function renderPark(){
+  labelParkWho();setParkWho(parkWho);
+  const m=$("#parkMount");let html="";
+  if(S.resisted>0){
+    html+='<div class="resisted"><div class="r1">Money you talked yourself out of spending</div>'+
+      '<div class="r2 num">'+money(S.resisted)+'</div></div>';
+  }
+  const active=S.parked.filter(p=>p.status==="cooling");
+  if(!active.length){
+    html+='<div class="empty" style="padding:26px 10px"><b>Nothing on hold</b>Next time the urge hits, park it here instead of checking out.</div>';
+  }else{
+    active.sort((a,b)=>new Date(a.added)-new Date(b.added)).forEach(p=>{
+      const passed=daysBetween(new Date(p.added),new Date());
+      const remain=p.cool-passed; const ready=remain<=0;
+      html+='<div class="parked"><div class="ptop"><div class="pname">'+escapeHtml(p.name)+'</div>'+
+        '<div class="pcost num">'+money(p.cost)+'</div></div>'+
+        '<span class="pwho '+p.who+'">'+escapeHtml(S.names[p.who])+'</span>'+
+        '<div class="status'+(ready?' ready':'')+'">'+
+        (ready?'Cooled off \u2014 still want it?':'Cools off in '+remain+(remain===1?' day':' days'))+'</div>'+
+        '<div class="pacts">'+
+        '<button class="tiny warn" onclick="letGo('+p.id+')">Let it go</button>'+
+        '<button class="tiny primary" onclick="buyParked('+p.id+')">Buy it</button>'+
+        '</div></div>';
+    });
+  }
+  m.innerHTML=html;
+}
+function letGo(id){
+  const p=S.parked.find(x=>x.id===id);if(!p)return;
+  p.status="dropped";S.resisted+=(+p.cost||0);save();
+  toast("Saved "+money(p.cost)+" by waiting \uD83C\uDF31");renderPark();
+}
+function buyParked(id){
+  const p=S.parked.find(x=>x.id===id);if(!p)return;
+  p.status="bought";
+  S.txns.push({id:Date.now(),amount:p.cost,cat:p.who,who:p.who,note:p.name,date:new Date().toISOString().slice(0,10)});
+  save();toast("Logged to "+S.names[p.who]+"\u2019s allowance");renderPark();
+}
+
+/* ---------- MONEY DATE ---------- */
+function renderDate(){
+  const m=$("#dateMount");
+  const saved=savedTotal(),target=+S.goal.target||0;
+  const monthSave=spentThisMonth("savings");
+  const aSpent=spentThisMonth("a"),bSpent=spentThisMonth("b");
+  const ess=spentThisMonth("essentials"),sh=spentThisMonth("shared");
+  const flags=[];
+  if((+S.alloc.a||0)-aSpent<0)flags.push(S.names.a+" is over their allowance");
+  if((+S.alloc.b||0)-bSpent<0)flags.push(S.names.b+" is over their allowance");
+  if((+S.alloc.essentials||0)>0 && ess>S.alloc.essentials)flags.push("Essentials ran over");
+  if((+S.alloc.shared||0)>0 && sh>S.alloc.shared)flags.push("Shared spending ran over");
+  if((+S.alloc.savings||0)>0 && monthSave<S.alloc.savings)flags.push("Savings is short of target this month");
+
+  let html='<h2 class="vt">Money date</h2><p class="vsub">Ten quiet minutes, once a week. Read it together.</p>';
+  html+='<div class="card"><div class="eyebrow">Where things stand</div>';
+  html+=dateLine("Saved so far",money(saved)+(target?" of "+money(target):""),"var(--save)");
+  html+=dateLine("Saved this month",money(monthSave),"var(--save)");
+  html+=dateLine(S.names.a+"\u2019s spend",money(aSpent)+" of "+money(S.alloc.a),"var(--a)");
+  html+=dateLine(S.names.b+"\u2019s spend",money(bSpent)+" of "+money(S.alloc.b),"var(--b)");
+  html+=dateLine("Essentials",money(ess)+" of "+money(S.alloc.essentials),"var(--neutral)");
+  html+=dateLine("Shared",money(sh)+" of "+money(S.alloc.shared),"var(--neutral)");
+  html+='</div>';
+
+  html+='<div class="card"><div class="eyebrow">Worth a word</div>';
+  if(!flags.length){html+='<div style="font-size:14px;color:var(--save);font-weight:600">All inside the plan. Nothing to debate \uD83D\uDC4F</div>';}
+  else{flags.forEach(f=>{html+='<div style="font-size:14px;padding:7px 0;border-top:1px solid var(--line);color:var(--ink-soft)">\u2022 '+escapeHtml(f)+'</div>';});
+    html+='<div class="hint">These are the plan\u2019s flags, not anyone\u2019s fault. Decide together what to adjust.</div>';}
+  html+='</div>';
+
+  html+='<div class="card"><div class="eyebrow">Talk through</div>'+
+    '<div style="font-size:14px;color:var(--ink-soft);line-height:1.7">'+
+    '1. Did we save what we meant to?<br>2. Anything coming up next week to plan for?<br>'+
+    '3. Any pot that needs a tweak?<br>4. Anything in <b>Park</b> ready to decide?</div></div>';
+
+  html+='<div class="btnrow"><button class="primary" onclick="finishDate()">Done \u2014 mark this week</button></div>';
+  m.innerHTML=html;
+}
+function dateLine(label,val,color){
+  return '<div class="leftover" style="border-top:1px solid var(--line);padding-top:10px"><span style="color:var(--ink-soft);font-size:13.5px">'+label+'</span>'+
+    '<span class="v num" style="color:'+color+'">'+val+'</span></div>';
+}
+function finishDate(){S.lastDate=new Date().toISOString();save();toast("Money date logged. See you next week.");go("home");}
+
+/* ---------- SETUP ---------- */
+function renderSetup(){
+  const m=$("#setupMount");
+  const allocSum=(+S.alloc.savings||0)+(+S.alloc.essentials||0)+(+S.alloc.shared||0)+(+S.alloc.a||0)+(+S.alloc.b||0);
+  const leftover=(+S.income||0)-allocSum;
+  m.innerHTML=
+    '<h2 class="vt">Our plan</h2><p class="vsub">Set this once. Change it whenever life does.</p>'+
+    '<div class="card"><div class="eyebrow">Sync across phones</div>'+
+      '<div class="syncstat" id="syncStatus">\u2026</div>'+
+      '<div class="hint" style="margin-top:0">Both phones enter the <b>same household code</b> to share one ledger \u2014 works on Android and iPhone alike. '+(activeConfig().databaseURL?'':'First paste your Firebase config below.')+'</div>'+
+      '<label class="fl">Household code</label>'+
+      '<div class="row2"><input id="sy-code" value="'+attr(syncCfg.code||"")+'" placeholder="shared between you two"><button class="ghost" id="sy-gen">Generate</button></div>'+
+      '<details style="margin-top:14px"><summary style="color:var(--ink-soft);font-size:13px;font-weight:600">\u2699 Firebase config '+(activeConfig().databaseURL?'(set)':'(needed once)')+'</summary>'+
+        '<label class="fl">Paste config JSON</label>'+
+        '<textarea id="sy-cfg" placeholder=\'{"apiKey":"\u2026","databaseURL":"https://\u2026.firebaseio.com",\u2026}\'>'+(syncCfg.config?attr(JSON.stringify(syncCfg.config)):"")+'</textarea>'+
+        '<div class="hint" style="margin-top:8px">Paste the whole block Firebase gives you \u2014 quotes optional. It must include the <b>databaseURL</b>. Do this once on each phone.</div>'+
+      '</details>'+
+      '<div class="btnrow"><button class="primary" id="sy-connect">Connect &amp; sync</button></div>'+
+    '</div>'+
+    '<div class="card"><div class="eyebrow">Who\u2019s who</div>'+
+      '<div class="row2"><div><label class="fl">Name</label><input id="s-na" value="'+attr(S.names.a)+'"></div>'+
+      '<div><label class="fl">Name</label><input id="s-nb" value="'+attr(S.names.b)+'"></div></div></div>'+
+    '<div class="card"><div class="eyebrow">Monthly take-home (combined)</div>'+
+      '<input id="s-income" type="number" inputmode="decimal" value="'+(S.income||"")+'" placeholder="0.00">'+
+      '<div class="hint" style="margin-top:8px">What actually lands in your accounts \u2014 net pay after taxes and deductions, both of you added together.</div></div>'+
+    '<div class="card"><div class="eyebrow">Where it goes each month</div>'+
+      '<details style="margin-bottom:4px"><summary style="color:var(--save);font-size:13px;font-weight:600;cursor:pointer">\u24D8 What goes where?</summary>'+
+        '<div style="font-size:12.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5"><b style="color:var(--ink)">Essentials</b> \u2014 must-pay bills: rent, utilities, internet, phone, insurance, baseline groceries, transport.</div>'+
+        '<div style="font-size:12.5px;color:var(--ink-soft);margin-top:7px;line-height:1.5"><b style="color:var(--ink)">Shared</b> \u2014 wants you choose together: date nights, eating out, trips, household extras, hosting friends.</div>'+
+        '<div style="font-size:12.5px;color:var(--ink-soft);margin-top:7px;line-height:1.5"><b style="color:var(--ink)">Allowance</b> \u2014 each person\u2019s own no-questions money: board games, her things \u2014 no justifying it to each other.</div>'+
+      '</details>'+
+      allocField("Savings (paid first)","s-savings",S.alloc.savings)+
+      allocField("Essentials & bills","s-essentials",S.alloc.essentials)+
+      allocField("Shared spending","s-shared",S.alloc.shared)+
+      allocField((S.names.a||"A")+"\u2019s allowance","s-a",S.alloc.a)+
+      allocField((S.names.b||"B")+"\u2019s allowance","s-b",S.alloc.b)+
+      '<div class="divider"></div>'+
+      '<div class="leftover"><span style="color:var(--ink-soft)">Unallocated</span>'+
+      '<span class="v num '+(leftover<0?'bad':'ok')+'" id="s-left">'+money(leftover)+'</span></div>'+
+      '<div class="hint">Aim for zero left over \u2014 give every dollar a job. Negative means you\u2019ve planned to spend more than you earn.</div>'+
+    '</div>'+
+    '<div class="card"><div class="eyebrow">Savings goal</div>'+
+      '<label class="fl">What are you saving for?</label><input id="s-goal" value="'+attr(S.goal.name)+'" placeholder="Emergency fund, house, Japan trip\u2026">'+
+      '<div class="row2"><div><label class="fl">Target</label><input id="s-target" type="number" inputmode="decimal" value="'+(S.goal.target||"")+'"></div>'+
+      '<div><label class="fl">Already saved</label><input id="s-start" type="number" inputmode="decimal" value="'+(S.goal.start||"")+'"></div></div></div>'+
+    '<div class="btnrow"><button class="primary" id="s-save">Save plan</button></div>'+
+    '<div class="card"><div class="eyebrow">Your data</div>'+
+      '<div class="hint" style="margin-top:0">Without sync, data stays on this device only \u2014 nothing is uploaded. Export a backup to keep it safe or move it to another phone.</div>'+
+      '<div class="btnrow"><button class="ghost tiny" id="s-export">Export backup</button>'+
+      '<button class="ghost tiny" id="s-import">Import backup</button></div>'+
+      '<div class="btnrow"><button class="warn tiny" id="s-reset">Reset everything</button></div>'+
+      '<input id="s-file" type="file" accept="application/json" style="display:none"></div>';
+
+  // live unallocated update
+  ["s-income","s-savings","s-essentials","s-shared","s-a","s-b"].forEach(id=>{
+    $("#"+id).addEventListener("input",()=>{
+      const inc=parseFloat($("#s-income").value)||0;
+      const sum=["s-savings","s-essentials","s-shared","s-a","s-b"].reduce((t,x)=>t+(parseFloat($("#"+x).value)||0),0);
+      const lo=inc-sum;const el=$("#s-left");el.textContent=money(lo);
+      el.className="v num "+(lo<0?"bad":"ok");
+    });
+  });
+  $("#s-save").onclick=()=>{
+    S.names.a=$("#s-na").value.trim()||"Partner A";
+    S.names.b=$("#s-nb").value.trim()||"Partner B";
+    S.income=parseFloat($("#s-income").value)||0;
+    S.alloc.savings=parseFloat($("#s-savings").value)||0;
+    S.alloc.essentials=parseFloat($("#s-essentials").value)||0;
+    S.alloc.shared=parseFloat($("#s-shared").value)||0;
+    S.alloc.a=parseFloat($("#s-a").value)||0;
+    S.alloc.b=parseFloat($("#s-b").value)||0;
+    S.goal.name=$("#s-goal").value.trim()||"Savings goal";
+    S.goal.target=parseFloat($("#s-target").value)||0;
+    S.goal.start=parseFloat($("#s-start").value)||0;
+    save();toast("Plan saved");go("home");
+  };
+  $("#s-export").onclick=()=>{
+    const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="our-ledger-backup.json";a.click();toast("Backup downloaded");
+  };
+  $("#s-import").onclick=()=>$("#s-file").click();
+  $("#s-file").onchange=e=>{
+    const f=e.target.files[0];if(!f)return;const r=new FileReader();
+    r.onload=()=>{try{S=Object.assign(defaults(),JSON.parse(r.result));save();toast("Backup restored");go("home");}catch(err){toast("Couldn\u2019t read that file");}};
+    r.readAsText(f);
+  };
+  $("#s-reset").onclick=()=>{
+    if(confirm("This clears all your data on this device. Export a backup first if you want to keep it. Continue?")){
+      S=defaults();save();toast("Reset done");go("home");
+    }
+  };
+  // sync panel
+  $("#sy-gen").onclick=()=>{$("#sy-code").value=randCode();};
+  $("#sy-connect").onclick=()=>{
+    const code=$("#sy-code").value.trim();
+    let cfg=syncCfg.config||null;
+    const raw=($("#sy-cfg").value||"").trim();
+    if(raw){cfg=parseConfig(raw);if(!cfg){toast("Couldn\u2019t read that \u2014 paste the whole config block from Firebase");return;}}
+    if(code.length<16){toast("Use a code of 16+ characters");return;}
+    const eff=(cfg&&cfg.databaseURL)?cfg:(FIREBASE_CONFIG&&FIREBASE_CONFIG.databaseURL?FIREBASE_CONFIG:null);
+    if(!eff){toast("Config needs a databaseURL \u2014 create the Realtime Database first");return;}
+    syncCfg={code,config:cfg||FIREBASE_CONFIG};
+    try{localStorage.setItem(SYNC_KEY,JSON.stringify(syncCfg));}catch(e){}
+    if(fbRef){try{fbRef.off();}catch(e){}fbRef=null;}
+    syncReady=false;
+    initSync();
+    toast("Connecting\u2026");
+  };
+  updateSyncUI(syncEnabled()?(syncReady?"on":"connecting"):"off");
+}
+function allocField(label,id,val){
+  return '<label class="fl">'+label+'</label><input id="'+id+'" type="number" inputmode="decimal" value="'+(val||"")+'" placeholder="0.00">';
+}
+
+/* ---------- utils ---------- */
+function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function attr(s){return escapeHtml(s).replace(/"/g,"&quot;");}
+/* accepts the config block Firebase gives you, even with unquoted keys / const wrapper */
+function parseConfig(text){
+  if(!text)return null;
+  let t=String(text).trim();
+  const i=t.indexOf("{"),j=t.lastIndexOf("}");
+  if(i>=0&&j>i)t=t.slice(i,j+1);
+  try{const o=JSON.parse(t);if(o&&typeof o==="object")return o;}catch(e){}
+  try{const o=Function('"use strict";return ('+t+')')();if(o&&typeof o==="object")return o;}catch(e){}
+  return null;
+}
+function fmtDate(d){const x=new Date(d);return x.toLocaleString("en-US",{month:"short",day:"numeric"});}
+
+/* ---------- install prompt ---------- */
+let deferredPrompt=null;
+const standalone=window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+window.addEventListener("beforeinstallprompt",e=>{
+  e.preventDefault();deferredPrompt=e;
+  if(!standalone){const b=document.getElementById("installBar");if(b)b.style.display="flex";}
+});
+window.addEventListener("appinstalled",()=>{deferredPrompt=null;const b=document.getElementById("installBar");if(b)b.style.display="none";});
+(function(){
+  const btn=document.getElementById("installBtn");
+  if(btn)btn.onclick=async()=>{
+    if(!deferredPrompt)return;
+    deferredPrompt.prompt();
+    try{await deferredPrompt.userChoice;}catch(e){}
+    deferredPrompt=null;const b=document.getElementById("installBar");if(b)b.style.display="none";
+  };
+})();
+
+/* ---------- boot ---------- */
+renderHome();
+initSync();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
